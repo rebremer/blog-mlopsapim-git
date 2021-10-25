@@ -15,8 +15,8 @@ This gives a short, high-level overview of how this repo may be used.
 1. Create a service connection to your Azure Machine Learning workspace and use the name `aml-workspace-connection`
 1. Edit [`pipelines/german-credit-config.yml`](pipelines/german-credit-config.yml) and adapt the values to point to your workspace
 1. Import the following pipelines into DevOps
-    * [`pipelines/1-german-credit-infracture.yml`](pipelines/1-german-credit-infrascture.yml) - Deploys Azure ML workspace with a dataset and private AKS cluster in VNET and Azure Api management
-    * [`pipelines/2-german-credit-train-and-register.yml`](2-pipelines/german-credit-train-and-register.yml) - Trains and registers the model automatically
+    * [`pipelines/1-german-credit-infrastructure.yml`](pipelines/1-german-credit-infrastructure.yml) - Deploys Azure ML workspace with a dataset and private AKS cluster in VNET and Azure Api management
+    * [`pipelines/2-german-credit-train-and-register.yml`](pipelines/2-german-credit-train-and-register.yml) - Trains and registers the model automatically
     * [`pipelines/3a-german-credit-deploy.yml`](pipelines/3a-german-credit-deploy.yml) - Deploys the trained model to AKS cluster creating a private endpoint
     * [`pipelines/3b-german-credit-apimoperation.yml`](pipelines/3b-german-credit-apimoperation.yml) - Deploys an APIM endpoint exposing the private AKS endpoint. Authentication is based on Azure AD
 
