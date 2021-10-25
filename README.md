@@ -1,6 +1,6 @@
 # mlops, secure endpoints
 
-This repo shows some introduction examples to Azure Machine Learning and a simple MLOps implemenation for automating model training and deployment. Elaborating this [git repo](https://github.com/csiebler/mlops-demo) of Clemens Siebler 
+This repo shows some introduction examples to Azure Machine Learning and a simple MLOps implemenation in which endpoints are secured by Azure API Management. Elaborating this [git repo](https://github.com/csiebler/mlops-demo) of Clemens Siebler.
 
 ## Setup & Demo Flow
 
