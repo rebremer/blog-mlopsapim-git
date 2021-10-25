@@ -1,6 +1,6 @@
 # mlops, secure endpoints
 
-This repo shows some introduction examples to Azure Machine Learning and a simple MLOps implemenation in which endpoints are secured by Azure API Management. Elaborating this [git repo](https://github.com/csiebler/mlops-demo) of Clemens Siebler.
+This repo shows some introduction examples to Azure Machine Learning and a simple MLOps implemenation in which endpoints are secured by Azure API Management. Elaborating on this [git repo](https://github.com/csiebler/mlops-demo) of Clemens Siebler.
 
 ## Setup & Demo Flow
 
@@ -18,7 +18,7 @@ This gives a short, high-level overview of how this repo may be used.
     * [`pipelines/1-german-credit-infracture.yml`](pipelines/1-german-credit-infrascture.yml) - Deploys Azure ML workspace with a dataset and private AKS cluster in VNET and Azure Api management
     * [`pipelines/2-german-credit-train-and-register.yml`](2-pipelines/german-credit-train-and-register.yml) - Trains and registers the model automatically
     * [`pipelines/3a-german-credit-deploy.yml`](pipelines/3a-german-credit-deploy.yml) - Deploys the trained model to AKS cluster creating a private endpoint
-    * [`pipelines/3b-german-credit-deploy.yml`](pipelines/3b-german-credit-apimoparation.yml) - Deploys an APIM endpoint exposing the private AKS endpoint. Authentication is based on Azure AD
+    * [`pipelines/3b-german-credit-apimoperation.yml`](pipelines/3b-german-credit-apimoperation.yml) - Deploys an APIM endpoint exposing the private AKS endpoint. Authentication is based on Azure AD
 
 ## Conventions
 
