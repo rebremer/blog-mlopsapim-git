@@ -66,9 +66,6 @@ data = {
   'client_secret': client_secret
 }
 
-headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-resp = requests.post(url, data=data, headers=headers)
-
 token = resp.json()['access_token']
 print(str(token))
 #
