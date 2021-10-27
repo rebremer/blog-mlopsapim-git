@@ -67,7 +67,6 @@ data = {
 }
 
 token = resp.json()['access_token']
-print(str(token))
 #
 url = 'https://<<your apim>.azure-api.net/testprivv2/score'
 #
