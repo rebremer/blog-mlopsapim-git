@@ -15,9 +15,9 @@ steps:
       scriptLocation: inlineScript
       inlineScript: |
         az extension add -n azure-cli-ml
-        pip install azureml-core
-        pip install azure-cli-core
-        pip install azureml-dataset-runtime 
+        pip install azureml-core==1.35.0
+        pip install azure-cli-core==2.29.1
+        pip install azureml-dataset-runtime==1.35.0
 
   - task: AzureCLI@2
     displayName: 'Create Azure ML workspace'
