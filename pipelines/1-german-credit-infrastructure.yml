@@ -81,7 +81,7 @@ steps:
           echo "AKS cluster name already exists and does not have to be redeployed"
           exit 0
         fi
-        python pipelines/scripts/german-credit-aksprivate.py $(ml_workspace_name) $(ml_subscription_id) $(ml_workspace_rg) $(ml_vnet_name) $(ml_aks_cluster)
+        python pipelines/scripts/german-credit-aksprivate.py $(ml_workspace_name) $(ml_subscription_id) $(ml_workspace_rg) $(ml_vnet_name) $(ml_aks_cluster) $(ml_vnet_address_range) $(dns_service_ip)
 
   - task: AzurePowerShell@5
     displayName: 'Create API management'

@@ -1,6 +1,6 @@
 variables:
   # Name of your Azure DevOps service connection to your AML workspace
-  ml_workspace_connection: 'aml-workspace-connection'
+  ml_workspace_connection: '<<your service connection>>'
 
   # Name of your AML workspace and its resource group
   ml_workspace_name: 'blog-mlopsapim-amlv2'
@@ -20,22 +20,23 @@ variables:
   ml_model_filename: 'credit-prediction.pkl'
 
   # AKS cluster to deploy to (deployed in infra pipeline)
-  ml_aks_cluster: 'aks-dev-private'
+  ml_aks_cluster: 'aks-dev-priv2'
 
   # Model deployment name
   ml_deployment_name: 'german-credit-deployment'
 
   # subscription
-  ml_subscription_id: '<<your subscription>>'
+  ml_subscription_id: '<<your subscription id>>'
 
   # vnet
   ml_vnet_name: 'blog-mlopsapim-vnetv2'
   ml_vnet_address_range: '10.123.0.0/16'
   ml_subnet_aks_address_range: '10.123.0.0/24'
   ml_subnet_apim_address_range: '10.123.1.0/24'
+  dns_service_ip: '10.123.0.10'
 
   # apim
-  ml_apim_name: 'blog-mlopsapim-apimv3'
-  ml_apim_email: '<<your email address>>'
+  ml_apim_name: '<<your unique apim name>>'
+  ml_apim_email: '<<your email>>'
   ml_location: 'westeurope'
-  ml_tenant_id: '<<your tenant id>>
+  ml_tenant_id: '<<your tenant id>>'

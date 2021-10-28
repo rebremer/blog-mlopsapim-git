@@ -1,24 +1,43 @@
-# mlops, secure endpoints
+# mlops-demo
 
-This repo shows some introduction examples to Azure Machine Learning and a simple MLOps implemenation in which endpoints are secured by Azure API Management. Elaborating on this [git repo](https://github.com/csiebler/mlops-demo) of Clemens Siebler.
+This repo shows some introduction examples to Azure Machine Learning and a simple MLOps implemenation for automating model training and deployment.
 
 ## Setup & Demo Flow
 
 This gives a short, high-level overview of how this repo may be used.
 
-![Architecture](media/overview.png)
+### Interactive demo part
 
-## Simple MLOps pipelines
+1. If required, create an Azure Machine Learning workspace
+1. Create a tabular dataset from [`data/german_credit_data.csv`](data/german_credit_data.csv) and name it `german_credit_dataset` (download the file to your machine and select `From Local File` when creating a new Dataset)
+1. Create a file dataset from [`data/german_credit_data.csv`](data/german_credit_data.csv) and name it `german_credit_file` (use `From Datastore` and point to the same file as in the prior step)
+1. Clone the whole repo into a Compute Instance
+1. Walk through the following notebooks
+    * [`models/german-credit-basic/notebooks/german-credit-local.ipynb`](models/german-credit-basic/notebooks/german-credit-local.ipynb) - Shows how to run local training inside the Compute Instance, registers the model with data linage, and calculates the model explainability
+    * [`models/german-credit-basic/notebooks/german-credit-amlcompute.ipynb`](models/german-credit-basic/notebooks/german-credit-amlcompute.ipynb) - Shows how to train the same model on a Compute Cluster
+    * [`models/german-credit-basic/notebooks/deploy_webservices.ipynb`](models/german-credit-basic/notebooks/deploy_webservices.ipynb) - Shows how to deploy the trained model to an Azure Container Instance
+1. For deployment to AKS, make sure to create an AKS cluster in AML that has `SSL enabled` (using the Microsoft certificate)
+
+### MLOps demo part
+
+#### Simple MLOps pipelines
 
 1. Create a new project in Azure DevOps
 1. Fork this repo or import it into Azure DevOps (so that you can make changes to the repo)
 1. Create a service connection to your Azure Machine Learning workspace and use the name `aml-workspace-connection`
 1. Edit [`pipelines/german-credit-config.yml`](pipelines/german-credit-config.yml) and adapt the values to point to your workspace
 1. Import the following pipelines into DevOps
-    * [`pipelines/1-german-credit-infrastructure.yml`](pipelines/1-german-credit-infrastructure.yml) - Deploys Azure ML workspace with a dataset and private AKS cluster in VNET and Azure Api management
-    * [`pipelines/2-german-credit-train-and-register.yml`](pipelines/2-german-credit-train-and-register.yml) - Trains and registers the model automatically
-    * [`pipelines/3a-german-credit-deploy.yml`](pipelines/3a-german-credit-deploy.yml) - Deploys the trained model to AKS cluster creating a private endpoint
-    * [`pipelines/3b-german-credit-apimoperation.yml`](pipelines/3b-german-credit-apimoperation.yml) - Deploys an APIM endpoint exposing the private AKS endpoint. Authentication is based on Azure AD
+    * [`pipelines/german-credit-train-and-register.yml`](pipelines/german-credit-train-and-register.yml) - Trains and registers the model automatically
+    * [`pipelines/german-credit-deploy.yml`](pipelines/german-credit-deploy.yml) - Deploys the trained model to AKS
+1. Run the pipelines
+
+#### Staged MLOps pipelines
+
+1. First, get the simple pipelines from [`pipelines/`](pipelines/) running
+1. Edit [`pipelines-staged/german-credit-config-dev.yml`](pipelines-staged/german-credit-config-dev.yml) and  [`pipelines-staged/german-credit-config-prod.yml`](pipelines-staged/german-credit-config-prod.yml) and adapt the values to point to your dev and prod workspaces
+1. Import the following pipeline into DevOps
+    * [`pipelines-staged/german-credit-rollout.yml`](pipelines-staged/german-credit-rollout.yml) - Trains, registers, and deploys the model automatically to a Dev environment, once successful, the same is repeated in a Prod environment
+1. Run the pipeline
 
 ## Conventions
 
@@ -45,31 +64,15 @@ models
 
 ## Testing
 
-This snipped can be used to manually showcase/test the deployed model on AKS using the APIM exposed endpoint: 
+This snipped can be used to manually showcase/test the deployed model on ACI: 
 
 ```python
 import requests
 import json
 
-import json
-import requests
-#
-# creating bearer token using SPN (can also be created using Managed Identity or logging in as a user)
-tenant ='<<your tenant id>>'
-client_id = '<<spn client id>>'
-client_secret = '<<spn secret>>'
+url = '<scoring url>'
+key = '<api key>'
 
-url = 'https://login.microsoftonline.com/%s/oauth2/token' % tenant
-data = {
-  'grant_type': 'client_credentials',
-  'client_id': client_id,
-  'client_secret': client_secret
-}
-
-token = resp.json()['access_token']
-#
-url = 'https://<<your apim>.azure-api.net/testprivv2/score'
-#
 test_data = {
   'data': [{
     "Age": 20,
@@ -84,7 +87,7 @@ test_data = {
   }]
 }
 
-headers = {'Content-Type':'application/json', 'Authorization': 'bearer ' + token}
+headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key}
 resp = requests.post(url, json=test_data, headers=headers)
 
 print("Prediction (good, bad):", resp.text)

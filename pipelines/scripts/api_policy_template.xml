@@ -17,6 +17,9 @@
             <openid-config url="https://login.microsoftonline.com/{tenant_id}/v2.0/.well-known/openid-configuration" />
             <openid-config url="https://login.microsoftonline.com/{tenant_id}/.well-known/openid-configuration" />
         </validate-jwt>
+        <set-header name="Authorization" exists-action="override">
+            <value>Bearer {{AMLKey}}</value>
+        </set-header>
     </inbound>
     <backend>
         <base />

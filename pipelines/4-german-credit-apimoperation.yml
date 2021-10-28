@@ -1,0 +1,57 @@
+variables: 
+ - template: german-credit-config.yml
+
+trigger: none
+
+pool:
+  vmImage: ubuntu-20.04
+
+steps:
+  - task: AzureCLI@2
+    displayName: 'Install AML CLI'
+    inputs:
+      azureSubscription: $(ml_workspace_connection)
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        az extension add -n azure-cli-ml
+
+  - task: AzureCLI@2
+    displayName: 'Attach to workspace'
+    inputs:
+      azureSubscription: $(ml_workspace_connection)
+      scriptType: bash
+      scriptLocation: inlineScript
+      workingDirectory: $(ml_model_path)
+      inlineScript: |
+        az ml folder attach -g $(ml_workspace_rg) -w $(ml_workspace_name)
+
+  - task: AzureCLI@2
+    displayName: 'Get AML endpoint URL'
+    inputs:
+      azureSubscription: $(ml_workspace_connection)
+      workingDirectory: $(ml_model_path)
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        ml_endpoint_json=$(az ml endpoint realtime show -n $(ml_deployment_name))
+        ml_endpoint_url=$(jq .scoringUri -r <<< "$ml_endpoint_json")
+        echo "##vso[task.setvariable variable=ml_endpoint_url]$ml_endpoint_url"
+        ml_keys_json=$(az ml endpoint realtime regen-key -k Primary -n $(ml_deployment_name))
+        ml_key=$(jq .primaryKey -r <<< "$ml_keys_json")
+        echo "##vso[task.setvariable variable=ml_key;issecret=true]$ml_key"
+
+  - task: AzurePowerShell@5
+    displayName: 'Create API management operation exposing AKS private endpoint'
+    inputs:
+      azureSubscription: $(ml_workspace_connection)
+      scriptType: filePath
+      scriptPath: pipelines/scripts/germin-credit-apimoperation.ps1
+      scriptArguments:
+        -ml_workspace_rg $(ml_workspace_rg) `
+        -ml_apim_name $(ml_apim_name) `
+        -ml_endpoint_url $(ml_endpoint_url) `
+        -ml_tenant_id $(ml_tenant_id) `
+        -ml_key $(ml_key)
+      azurePowerShellVersion: latestVersion
+      pwsh: true
