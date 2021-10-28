@@ -5,7 +5,7 @@ framework: Python
 nodeCount: 1
 environment:
   environmentVariables:
-    EXAMPLE_ENV_VAR: EXAMPLE_VALUE
+    AZUREML_COMPUTE_USE_COMMON_RUNTIME: false
   python:
     userManagedDependencies: false
     interpreterPath: python
