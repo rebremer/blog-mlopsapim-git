@@ -19,4 +19,4 @@ appInsightsEnabled: True
 sslEnabled: False
 
 dataCollection:
-  storageEnabled: True
+  storageEnabled: False
