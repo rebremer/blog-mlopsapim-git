@@ -7,10 +7,6 @@ workspace=sys.argv[1]
 subscription_id=sys.argv[2]
 resource_grp=sys.argv[3]
 
-#workspace="blog-mlopsapim-amlv2"
-#subscription_id = "513a7987-b0d9-4106-a24d-4b3f49136ea8"
-#resource_grp ="blog-mlopsapim-rg"
-
 cli_auth = AzureCliAuthentication()
 ws = Workspace(workspace_name = workspace,
                subscription_id = subscription_id,
