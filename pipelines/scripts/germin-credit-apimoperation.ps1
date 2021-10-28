@@ -42,8 +42,3 @@ Set-AzApiManagementApi -InputObject $newapi -Name $newapi.Name -ServiceUrl $newa
 Set-AzApiManagementPolicy -Context $apiContext -PolicyFilePath pipelines/scripts/api_policy.xml -ApiId $newapi.ApiId
 #
 New-AzApiManagementOperation -Context $apiContext -ApiId $newapi.ApiId -OperationId "score" -Name "score" -Method "POST" -UrlTemplate "/score" -Description "Use this operation to score"
-#
-#$virtualNetwork = New-AzApiManagementVirtualNetwork -SubnetResourceId "/subscriptions/513a7987-b0d9-4106-a24d-4b3f49136ea8/resourceGroups/blog-mlopsapim-rg/providers/Microsoft.Network/virtualNetworks/blog-mlopsapim-vnet/subnets/apim"
-#$Api.VpnType = "External"
-#$Api.VirtualNetwork = $virtualNetwork
-#Set-AzApiManagement -InputObject $Api
