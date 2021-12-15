@@ -1,0 +1,115 @@
+variables: 
+ - template: german-credit-config.yml
+
+trigger: none
+
+pool:
+  vmImage: ubuntu-20.04
+
+steps:
+  - task: AzureCLI@2
+    displayName: 'Install AML CLI, AML Python SDK'
+    inputs:
+      azureSubscription: $(ml_workspace_connection)
+      scriptType: bash
+      scriptLocation: inlineScript
+      addSpnToEnvironment: true
+      inlineScript: |
+        # start hack, downgrading to 2.29
+        sudo apt remove azure-cli -y && sudo apt autoremove -y;
+        sudo apt-get install -y dotnet-runtime-2.1
+        sudo apt-get update;
+        sudo apt-get install ca-certificates curl apt-transport-https lsb-release gnupg;
+        curl -sL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/microsoft.gpg > /dev/null ;
+        AZ_REPO=$(lsb_release -cs)
+        echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ $AZ_REPO main" |
+        sudo tee /etc/apt/sources.list.d/azure-cli.list
+        sudo apt-get update;
+        apt-cache policy azure-cli;
+        sudo apt-get install azure-cli=2.29.2-1~focal;
+        az login --service-principal -u $servicePrincipalId --password=$servicePrincipalKey --tenant $tenantId
+        #end hack
+        az extension add -n azure-cli-ml
+        pip install azureml-core==1.35.0
+        pip install azure-cli-core==2.29.1
+        pip install azureml-dataset-runtime==1.35.0
+
+  - task: AzureCLI@2
+    displayName: 'Create Azure ML workspace'
+    inputs:
+      azureSubscription: $(ml_workspace_connection)
+      scriptType: bash
+      scriptLocation: inlineScript
+      workingDirectory: $(ml_model_path)
+      inlineScript: |
+        amlexist=$(az ml workspace show -g $(ml_workspace_rg) -w $(ml_workspace_name))
+        amlname=$(jq .name -r <<< "$amlexist")
+        if [[ $amlname = $(ml_workspace_name) ]]; then
+          echo "AML workspace already exists and does not have to be redeployed"
+          exit 0
+        fi
+        az ml workspace create -g $(ml_workspace_rg) -w $(ml_workspace_name)
+
+  - task: AzureCLI@2
+    displayName: 'Create Data set'
+    inputs:
+      azureSubscription: $(ml_workspace_connection)
+      scriptType: bash
+      scriptLocation: inlineScript
+      workingDirectory: ''
+      inlineScript: |
+        python pipelines/scripts/german-credit-dataset.py $(ml_workspace_name) $(ml_subscription_id) $(ml_workspace_rg)
+
+  - task: AzureCLI@2
+    displayName: 'Create CPU Cluster'
+    inputs:
+      azureSubscription: $(ml_workspace_connection)
+      scriptType: bash
+      scriptLocation: inlineScript
+      workingDirectory: $(ml_model_path)
+      inlineScript: |
+        az ml computetarget create amlcompute -n $(ml_compute_name) --vm-size Standard_DS3_v2 --max-nodes 2 -g $(ml_workspace_rg) -w $(ml_workspace_name)
+
+  - task: AzureCLI@2
+    displayName: 'Create VNET and subnets'
+    inputs:
+      azureSubscription: $(ml_workspace_connection)
+      scriptType: bash
+      scriptLocation: inlineScript
+      workingDirectory: ''
+      inlineScript: |
+        az network vnet create -g $(ml_workspace_rg) -n $(ml_vnet_name) --address-prefix $(ml_vnet_address_range)
+        az network vnet subnet create -g $(ml_workspace_rg) --vnet-name $(ml_vnet_name) -n aks --address-prefixes $(ml_subnet_aks_address_range)
+        az network vnet subnet create -g $(ml_workspace_rg) --vnet-name $(ml_vnet_name) -n apim --address-prefixes $(ml_subnet_apim_address_range)
+
+  - task: AzureCLI@2
+    displayName: 'Create Private AKS cluster'
+    inputs:
+      azureSubscription: $(ml_workspace_connection)
+      scriptType: bash
+      scriptLocation: inlineScript
+      workingDirectory: ''
+      inlineScript: |
+        aksclusterexist=$(az ml computetarget show -n $(ml_aks_cluster) -g $(ml_workspace_rg) -w $(ml_workspace_name))
+        aksclustername=$(jq .name -r <<< "$aksclusterexist")
+        if [[ $aksclustername = $(ml_aks_cluster) ]]; then
+          echo "AKS cluster name already exists and does not have to be redeployed"
+          exit 0
+        fi
+        python pipelines/scripts/german-credit-aksprivate.py $(ml_workspace_name) $(ml_subscription_id) $(ml_workspace_rg) $(ml_vnet_name) $(ml_aks_cluster) $(ml_vnet_address_range) $(dns_service_ip)
+
+  - task: AzurePowerShell@5
+    displayName: 'Create API management'
+    inputs:
+      azureSubscription: $(ml_workspace_connection)
+      scriptType: filePath
+      scriptPath: pipelines/scripts/germin-credit-apim.ps1
+      scriptArguments:
+        -ml_subscription_id $(ml_subscription_id) `
+        -ml_workspace_rg $(ml_workspace_rg) `
+        -ml_vnet_name $(ml_vnet_name) `
+        -ml_apim_name $(ml_apim_name) `
+        -ml_apim_email $(ml_apim_email) `
+        -ml_location $(ml_location)
+      azurePowerShellVersion: latestVersion
+      pwsh: true
