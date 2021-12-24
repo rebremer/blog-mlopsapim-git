@@ -16,7 +16,7 @@ steps:
       inlineScript: |
         az extension add -n azure-cli-ml
         pip install azureml-core==1.35.0
-        pip install azure-cli-core==2.29.1
+        pip install azure-cli-core==2.22.1 # resolved dependency issue between azure-cli-core and azure cli 2.31
         pip install azureml-dataset-runtime==1.35.0
 
   - task: AzureCLI@2
