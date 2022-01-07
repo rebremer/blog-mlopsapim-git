@@ -1,0 +1,47 @@
+# 0. Scripts based on following documentation
+#
+# https://docs.microsoft.com/en-us/azure/machine-learning/how-to-deploy-managed-online-endpoints
+# https://docs.microsoft.com/en-us/azure/machine-learning/how-to-attach-arc-kubernetes?tabs=studio#azure-kubernetes-service-aks-
+
+# 1. Install extensions
+#
+az extension add --name ml
+az extension add --name connectedk8s
+az extension add --name k8s-extension
+az aks install-cli
+
+# 2. variables
+#
+$rg="<<your resource group>>"
+$aks="AKSinternallb" # if you change it here, change it in the endpoint.yml as well
+# Todo1: Automate subnet id created from vnet name, subnet name
+$subnetid="/subscriptions/<<xxx>>/resourceGroups/<<xxx>>/providers/Microsoft.Network/virtualNetworks/<<xxx>>/subnets/<<xxx>>"
+$azureml="<<your azure ml workspace>>"
+$endpoint="testprivendpoint" # if you change it here, change it in the endpoint.yml and blue-deployment.yml as well
+
+# 3. Create AKS cluster with internal load balancer. Model Endpoints are only reachable using private IP
+#
+# https://docs.microsoft.com/en-us/azure/aks/configure-azure-cni
+az aks create --resource-group $rg --name $aks --network-plugin azure --vnet-subnet-id $subnetid --docker-bridge-address 172.17.0.1/16 --dns-service-ip 10.123.4.10 --service-cidr 10.123.4.0/24 --generate-ssh-keys
+az aks get-credentials --resource-group $rg --name $aks
+# Make sure AKS MI has network contributor rights on Network in which internal load balancer is deployed
+# Todo2: create CLI commands that grants network contributor rights to AKS MI
+kubectl apply -f aks/internal-lb.yml
+
+# 4. Install Azure ML extension on AKS cluster
+#
+az feature register --namespace Microsoft.ContainerService -n AKS-ExtensionManager
+az k8s-extension create --name arcml-inference --extension-type Microsoft.AzureML.Kubernetes --cluster-type managedClusters --cluster-name $aks --config enableInference=True privateEndpointILB=True allowInsecureConnections=True --resource-group $rg --scope cluster --auto-upgrade-minor-version False
+az k8s-extension show --name amlarc-inference --cluster-type managedClusters --cluster-name $aks --resource-group $rg
+
+# 5. Attach AKS cluster to AML workspace
+#
+# get your resource id of you aks cluster
+# Todo3: automate this aks show in variable
+$aks_resource_id = "/subscriptions/<<xxx>>/resourcegroups/<<xxx>>/providers/Microsoft.ContainerService/managedClusters/<<xxx>>"
+az ml compute attach -g $rg -w $azureml -n $aks -t Kubernetes --resource-id $aks_resource_id
+
+# 6. Create endpoints and deployments using yml files on AKS cluster
+#
+az ml online-endpoint create -g $rg -w $azureml -n $endpoint -f endpoint/endpoint.yml
+az ml online-deployment create --name blue --endpoint $endpoint -f endpoint/blue-deployment.yml --all-traffic  -g $rg -w $azureml

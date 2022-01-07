@@ -1,0 +1,7 @@
+name: testprivendpoint
+compute: azureml:AKSinternallb
+description: testprivendpoint
+tags:
+  tag1: endpoint-tag1-value
+properties:
+  prop1: endpoint-prop1-value
