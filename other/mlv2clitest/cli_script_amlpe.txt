@@ -1,0 +1,92 @@
+# 0. Scripts based on following documentation
+#
+# https://docs.microsoft.com/en-us/azure/machine-learning/how-to-deploy-managed-online-endpoints
+# https://docs.microsoft.com/en-us/azure/machine-learning/how-to-attach-arc-kubernetes?tabs=studio#azure-kubernetes-service-aks-
+#
+
+# 1. Prerequisite:
+#
+# Agent running in a VNET (e.g. a Windows VM)
+
+# 2. Install extensions
+#
+az extension add --name ml
+az extension add --name connectedk8s
+az extension add --name k8s-extension
+az aks install-cli
+
+# 3. variables
+#
+$rg="<<your resource group>>"
+$agentVNET="<<your agent VNET>>"
+$sub="<<your subscripton id>>"
+$aks="AKSinternallb" # if you change it here, change it in the endpoint.yml as well
+$azureml="<<your azure ml workspace>>"
+$endpoint="testprivendpoint" # if you change it here, change it in the endpoint.yml and blue-deployment.yml as well
+$aks_vnet_name = "<<your resource vnet name>>"
+$subnet="aks"
+$aks_vnet_address_range = '10.0.0.0/16'
+$aks_subnet_aks_address_range = '10.0.2.0/24'
+$aks_subnet_cidr_address_range = '10.100.0.0/24'
+$dns_service_ip = '10.100.0.10'
+$loc="westeurope"
+
+# 4. Create AKS VNET
+#
+az network vnet create -g $rg -n $aks_vnet_name --address-prefix $aks_vnet_address_range
+az network vnet subnet create -g $rg --vnet-name $aks_vnet_name -n $subnet --address-prefixes $aks_subnet_aks_address_range
+az network vnet subnet update --disable-private-endpoint-network-policies true --name $subnet --resource-group $rg --vnet-name $aks_vnet_name
+
+# 5. Peer agent VNET to new AKS VNET
+#
+$aks_vnet_id="/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.Network/virtualNetworks/$aks_vnet_name"
+az network vnet peering create -n "agentaks" --remote-vnet $remote_vnet_spoke_id -g $rg --vnet-name $agentVNET --allow-forwarded-traffic --allow-gateway-transit --allow-vnet-access
+$agent_vnet_id="/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.Network/virtualNetworks/$agentVNET"
+az network vnet peering create -n "aksagent" --remote-vnet $agent_vnet_id -g $rg --vnet-name $agentVNET --allow-forwarded-traffic --allow-gateway-transit --allow-vnet-access
+
+# 6. (optional) Create Azure ML workspace and private endpoints to workspace
+#
+$aml_resource="/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.MachineLearningServices/workspaces/$azureml"
+az ml workspace create -g $rg --file privatelink/privatelink.yml
+az ml computetarget create amlcompute -n cpu-compute --vm-size Standard_DS3_v2 --max-nodes 2 -g $rg -w $azureml
+
+# 7. Create private endpoint connection from AKS VNET and Azure ML workspace
+#
+az network private-endpoint create -g $rg --name amlapipe --vnet-name $aks_vnet_name --subnet $subnet --private-connection-resource-id $aml_resource --group-id amlworkspace --connection-name workspace -l $loc
+az network private-dns zone create -g $rg --name privatelink.api.azureml.ms
+az network private-dns link vnet create -g $rg --zone-name privatelink.api.azureml.ms --name amlapilink --virtual-network $aks_vnet_name --registration-enabled false
+
+# 8. Create external AKS cluster
+#
+# https://docs.microsoft.com/en-us/azure/aks/configure-azure-cni
+$subnetid = (az network vnet subnet show -g $rg -n $subnet --vnet-name $aks_vnet_name | ConvertFrom-Json).id
+az aks create --resource-group $rg --name $aks --network-plugin azure --vnet-subnet-id $subnetid --docker-bridge-address 172.17.0.1/16 --dns-service-ip $dns_service_ip --service-cidr $aks_subnet_cidr_address_range --generate-ssh-keys --enable-managed-identity -y --enable-private-cluster
+az aks get-credentials --resource-group $rg --name $aks --overwrite-existing
+
+# 9. Grant managed Identity of AKS network contributor rights
+#
+$aksobjectid = (az aks show -g $rg -n $aks | ConvertFrom-Json).identity.principalId
+$vnetid = (az network vnet show -g $rg -n $aks_vnet_name | ConvertFrom-Json).id
+# Make sure AKS MI has network contributor rights on Network in which internal load balancer is deployed
+az role assignment create --assignee-object-id $aksobjectid --role "Network Contributor" --scope $vnetid
+
+# 10. Create internal load balancer to AKS cluster
+#
+kubectl apply -f aks/internal-lb.yml
+
+# 11. Install Azure ML extension on AKS cluster
+#
+az feature register --namespace Microsoft.ContainerService -n AKS-ExtensionManager
+az k8s-extension create --name arcml-inference --extension-type Microsoft.AzureML.Kubernetes --cluster-type managedClusters --cluster-name $aks --config enableInference=True privateEndpointILB=True allowInsecureConnections=True --resource-group $rg --scope cluster --auto-upgrade-minor-version False
+az k8s-extension show --name arcml-inference --cluster-type managedClusters --cluster-name $aks --resource-group $rg
+
+# 12. Attach AKS cluster to AML workspace
+#
+# get your resource id of you aks cluster
+$aks_id = (az aks show -g $rg -n $aks | ConvertFrom-Json).id
+az ml compute attach -g $rg -w $azureml -n $aks -t Kubernetes --resource-id $aks_id --namespace test
+
+# 13. Create endpoints and deployments using yml files
+#
+az ml online-endpoint create -g $rg -w $azureml -n $endpoint -f endpoint/endpoint.yml
+az ml online-deployment create --name blue --endpoint $endpoint -f endpoint/blue-deployment.yml --all-traffic  -g $rg -w $azureml
