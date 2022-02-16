@@ -6,7 +6,7 @@
 
 # 1. Prerequisite:
 #
-# Agent running in a VNET (e.g. a Windows VM)
+# Agent running in a VNET (e.g. a Windows VM). Rationale is that AKS cluster with --enable-private-cluster is created, requiring network connectivity from the agent that is used to deploy
 
 # 2. Install extensions
 #
