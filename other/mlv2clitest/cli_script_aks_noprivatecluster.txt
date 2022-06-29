@@ -5,9 +5,9 @@
 
 # 1. Install extensions
 #
-az extension add --name ml
-az extension add --name connectedk8s
-az extension add --name k8s-extension
+az extension add --name ml --upgrade
+az extension add --name connectedk8s --upgrade
+az extension add --name k8s-extension --upgrade
 az aks install-cli
 
 # 2. variables
@@ -43,12 +43,12 @@ az role assignment create --assignee-object-id $aksobjectid --role "Network Cont
 
 # 6. Create internal load balancer to AKS cluster
 #
-kubectl apply -f aks/internal-lb.yml
+# deleted, not necessary since internal load balancer is deployed in next step
 
 # 7. Install Azure ML extension on AKS cluster
 #
 az feature register --namespace Microsoft.ContainerService -n AKS-ExtensionManager
-az k8s-extension create --name arcml-inference --extension-type Microsoft.AzureML.Kubernetes --cluster-type managedClusters --cluster-name $aks --config enableInference=True privateEndpointILB=True allowInsecureConnections=True --resource-group $rg --scope cluster --auto-upgrade-minor-version False
+az k8s-extension create --name arcml-inference --extension-type Microsoft.AzureML.Kubernetes --cluster-type managedClusters --cluster-name $aks --config enableInference=True inferenceRouterServiceType=LoadBalancer internalLoadBalancerProvider=azure allowInsecureConnections=True --resource-group $rg --scope cluster --auto-upgrade-minor-version False
 az k8s-extension show --name arcml-inference --cluster-type managedClusters --cluster-name $aks --resource-group $rg
 
 # 8. Attach AKS cluster to AML workspace
